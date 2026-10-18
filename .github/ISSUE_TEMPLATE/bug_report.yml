@@ -1,0 +1,24 @@
+name: Bug report
+description: Report a reproducible problem
+labels: [bug]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe expected and observed behavior. Remove private addresses, SSIDs, and packet contents.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Linux distribution, Python/TShark versions, adapter and driver, managed or monitor mode. Do not attach real captures publicly.
+    validations:
+      required: true
