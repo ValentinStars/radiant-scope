@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "radiant-scope"
+version = "1.0.0"
+description = "Local-first Linux network observatory: RSSI, traffic, packet inspection and Wi-Fi channels"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "ValentinStars"}]
+keywords = ["wifi", "rssi", "network-monitor", "packet-analysis", "linux", "tshark"]
+classifiers = ["Development Status :: 4 - Beta", "Operating System :: POSIX :: Linux", "Programming Language :: Python :: 3", "Topic :: System :: Networking :: Monitoring"]
+
+[project.scripts]
+radiant-scope = "radiant_scope.server:main"
+
+[project.urls]
+Homepage = "https://github.com/ValentinStars/radiant-scope"
+Issues = "https://github.com/ValentinStars/radiant-scope/issues"
+
+[tool.setuptools.package-data]
+radiant_scope = ["web/*"]
+
+[tool.setuptools.packages.find]
+include = ["radiant_scope*"]
