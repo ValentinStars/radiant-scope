@@ -15,6 +15,6 @@ with tempfile.TemporaryDirectory() as tmp:
     artifact = out / 'radiant-scope-1.0.0.pyz'
     zipapp.create_archive(stage, artifact, interpreter='/usr/bin/env python3', main='radiant_scope.server:main', compressed=True)
     artifact.chmod(0o755)
-    checksum = hashlib.sha256(artifact.read_bytes()).hexdigest()
-    (out / 'SHA256SUMS').write_text(f'{checksum}  {artifact.name}\n')
+    artifacts = sorted(p for p in out.iterdir() if p.name.endswith(('.pyz', '.whl', '.tar.gz')))
+    (out / 'SHA256SUMS').write_text(''.join(f'{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n' for p in artifacts))
     print(artifact)
