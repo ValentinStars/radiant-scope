@@ -7,6 +7,7 @@ try { localSettings = JSON.parse(localStorage.getItem('radiant-settings') || '{}
 const settings = {bpf:'', monitor:false, motion:true, refresh:1000, ...localSettings};
 const palette = ['#c1f76b','#7eb6f6','#d5b6f9','#e5bc79','#82d5c1'];
 function setText(id, value) { $(id).textContent = value ?? '—'; }
+function setStatus(id, value) { const dot = document.createElement('i'); $(id).replaceChildren(dot, document.createTextNode(value)); }
 function formatBytes(value, rate = false) {
   const n = Number(value) || 0;
   const units = rate ? ['B/s','KB/s','MB/s','GB/s'] : ['B','KB','MB','GB','TB'];
@@ -116,7 +117,7 @@ function render() {
   $('demo-banner').classList.toggle('hidden', !state.demo);
   if ($('interface').value !== state.interface) $('interface').value = state.interface;
   setText('session-time',duration(state.uptime));
-  setText('capture-indicator',cap.running ? '● ЗАХВАТ АКТИВЕН' : '● ТЕЛЕМЕТРИЯ АКТИВНА');
+  setStatus('capture-indicator',cap.running ? 'ЗАХВАТ АКТИВЕН' : 'ТЕЛЕМЕТРИЯ АКТИВНА');
   $('capture-indicator').classList.toggle('capturing',cap.running);
   setText('capture',cap.running ? '■ Остановить захват' : '▶ Начать захват');
   $('capture').classList.toggle('danger',cap.running);
@@ -152,9 +153,9 @@ async function poll() {
   try {
     if (!paused) {
       const r = await fetch('/api/state');if(!r.ok) throw Error('Server offline');
-      state = await r.json();render();$('offline').classList.add('hidden');setText('connection','Локальное соединение');
+      state = await r.json();render();$('offline').classList.add('hidden');setStatus('connection','Локальное соединение');
     }
-  } catch (_) { $('offline').classList.remove('hidden');setText('connection','Нет соединения'); }
+  } catch (_) { $('offline').classList.remove('hidden');setStatus('connection','Нет соединения'); }
   setText('clock',new Date().toLocaleTimeString('ru-RU',{hour12:false}));
   setTimeout(poll,interval);
 }
@@ -173,7 +174,7 @@ $('capture').addEventListener('click',async()=>{
     toast(stop?'Захват остановлен. Буфер доступен для экспорта.':'Захват запускается. Статус и ошибки появятся на панели.');
   }catch(e){toast(e.message);}finally{button.disabled=false;}
 });
-$('pause').addEventListener('click',()=>{paused=!paused;setText('pause',paused?'▶ Продолжить UI':'Ⅱ Пауза UI');setText('connection',paused?'Отображение на паузе':'Локальное соединение');});
+$('pause').addEventListener('click',()=>{paused=!paused;setText('pause',paused?'▶ Продолжить UI':'Ⅱ Пауза UI');setStatus('connection',paused?'Отображение на паузе':'Локальное соединение');});
 $('scan').addEventListener('click',async()=>{const b=$('scan');b.disabled=true;setText('scan-status','Чтение окружения…');try{await post('/api/scan');const r=await fetch('/api/state');state=await r.json();renderWireless();}catch(e){toast(e.message);}finally{b.disabled=false;}});
 $('packet-search').addEventListener('input',()=>state&&renderPackets());$('protocol-filter').addEventListener('change',()=>state&&renderPackets());
 function openPacket(id){const p=state?.packets.find(x=>x.id===Number(id));if(!p)return;selectedPacket=p;const fields={'Номер':p.id,'Время':new Date(p.time*1000).toISOString(),'Источник':p.source,'Назначение':p.destination,'Протокол':p.protocol,'Размер':p.length+' B','RSSI':p.rssi==null?'Недоступен':p.rssi+' dBm','Информация':p.info};$('detail-fields').innerHTML=Object.entries(fields).map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');$('packet-detail').classList.remove('hidden');$('packet-detail').scrollIntoView({behavior:settings.motion?'smooth':'instant',block:'nearest'});}

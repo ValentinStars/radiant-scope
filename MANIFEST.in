@@ -1,0 +1,6 @@
+include README.md LICENSE CHANGELOG.md CONTRIBUTING.md SECURITY.md start.sh
+recursive-include radiant_scope/web *
+recursive-include docs *.md *.png
+recursive-include scripts *.py
+recursive-include tests *.py
+recursive-exclude * __pycache__ *.pyc

@@ -4,6 +4,7 @@ import atexit
 from collections import Counter, deque
 import csv
 import io
+from importlib.resources import files
 import json
 import math
 from pathlib import Path
@@ -17,7 +18,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
-ROOT = Path(__file__).parent / "web"
+ROOT = files("radiant_scope") / "web"
 SYS = Path("/sys/class/net")
 FIELDS = ["frame.time_epoch", "_ws.col.Source", "_ws.col.Destination", "_ws.col.Protocol", "frame.len", "_ws.col.Info", "radiotap.dbm_antsignal"]
 
@@ -37,7 +38,9 @@ def read(path, default=""):
         return default
 
 
-def interfaces():
+def interfaces(demo=False):
+    if demo:
+        return [{"name": "demo0", "kind": "wifi", "state": "up", "mac": "02:00:00:00:00:01", "addresses": ["192.0.2.10"]}, {"name": "demo1", "kind": "ethernet", "state": "down", "mac": "02:00:00:00:00:02", "addresses": []}]
     try:
         addresses = {x["ifname"]: x for x in json.loads(run(["ip", "-j", "address", "show"]) or "[]")}
     except (ValueError, KeyError):
@@ -75,7 +78,7 @@ class Observatory:
         self.demo = demo
         self.token = secrets.token_urlsafe(32)
         self.started = time.time()
-        self.items = interfaces()
+        self.items = interfaces(demo)
         self.interface = next((x["name"] for x in self.items if x["state"] == "up" and x["kind"] == "wifi"), self.items[0]["name"] if self.items else "lo")
         self.history = deque(maxlen=600)
         self.packets = deque(maxlen=2000)
@@ -127,6 +130,7 @@ class Observatory:
                 dt = max(now - previous[0], .01) if previous else 1
                 sample = {"time": time.time(), **counts, "rx": max(0, counts["rx_bytes"] - previous[1]["rx_bytes"]) / dt if previous else 0, "tx": max(0, counts["tx_bytes"] - previous[1]["tx_bytes"]) / dt if previous else 0, "pps": max(0, counts["rx_packets"] + counts["tx_packets"] - previous[1]["rx_packets"] - previous[1]["tx_packets"]) / dt if previous else 0, "rssi": self.wifi.get("rssi")}
                 if self.demo:
+                    sample.update(rx_bytes=round((tick + 1) * 1800000), tx_bytes=round((tick + 1) * 300000), rx_packets=(tick + 1) * 200, tx_packets=(tick + 1) * 50)
                     sample.update(rx=(1.8 + math.sin(tick / 7) + .3 * math.sin(tick * 2)) * 900000, tx=(.6 + .4 * math.sin(tick / 4)) * 500000, pps=240 + 90 * math.sin(tick / 5), rssi=round(-53 + 5 * math.sin(tick / 9), 1))
                     self.wifi = {"ssid": "Radiant demo lab", "bssid": "02:00:00:00:00:01", "channel": 36, "frequency": 5180, "width": "80 MHz", "mode": "managed", "bitrate": 866.7, "rssi": sample["rssi"], "retries": 12, "failed": 0}
                     if self.capture_started and not self.capture_ended:
@@ -139,7 +143,7 @@ class Observatory:
 
     def select(self, name):
         with self.transition:
-            if name not in {x["name"] for x in interfaces()}:
+            if name not in {x["name"] for x in interfaces(self.demo)}:
                 raise ValueError("Interface does not exist")
             self.stop_capture()
             with self.lock:
@@ -291,7 +295,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send({"error": "Local access only"}, status=403)
         path = urlsplit(self.path).path
         if path == "/api/init":
-            return self.send({"token": self.app.token, "interfaces": interfaces(), "tools": {x: bool(shutil.which(x)) for x in ["iw", "nmcli", "tshark", "dumpcap"]}})
+            return self.send({"token": self.app.token, "interfaces": interfaces(self.app.demo), "tools": {x: bool(shutil.which(x)) for x in ["iw", "nmcli", "tshark", "dumpcap"]}})
         if path == "/api/state":
             return self.send(self.app.snapshot())
         if path == "/api/export.json":
@@ -309,7 +313,7 @@ class Handler(BaseHTTPRequestHandler):
         assets = {"/": "index.html", "/app.js": "app.js", "/style.css": "style.css", "/icon.svg": "icon.svg"}
         if path in assets:
             p = ROOT / assets[path]
-            mime = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml"}[p.suffix]
+            mime = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml"}[Path(assets[path]).suffix]
             return self.send(p.read_bytes(), mime)
         self.send({"error": "Not found"}, status=404)
 
